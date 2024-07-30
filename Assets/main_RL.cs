@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using NumSharp;
 using Unity.MLAgents;
@@ -8,28 +7,14 @@ using Unity.MLAgents.Actuators;
 
 public class main_RL : Agent
 {
-    private float pi = 3.1416f;
-    private float radius = 0.000250f;
-    private float length = 0.000800f;
     public float I1 = 8f; public float I2 = 0f; public float I3 = -8f; public float I4 = 0f;
     public float I5 = -7f; public float I6 = 5f; public float I7 = 5f; public float I8 = -7f;
     public bool check_vel_zero = false;
     public bool checkFirst = false;
-    public float force_mult = 5.0f;
-
     public magnet[] magnets;
     private int totalSteps = 0;
-    public float huresticSpeed = 0.5f;
-    private float roi_xy = 0.009f; //0.009f
-    private float roi_z = 0.02f; //0.009f
     Vector3 agentPos = Vector3.zero;
     Vector3 targetPos = Vector3.zero;
-    public float threshold_xy = 1.5f;
-    public float threshold_z = 1.5f;
-    public float threshold_xyz = 1.5f;
-    private float wksp_size_xy = 20.0f;
-    private float wksp_size_z = 20.0f;
-    private float max_steps = 20000;
     private int step_inc = 0;
     public bool outOfBound = true;
     GameObject cube;
@@ -53,36 +38,9 @@ public class main_RL : Agent
     // Reset reason
     private string resetReason = "";
 
-    NDArray Bvec = new double[,] { {-0.3784,   -0.6537,    0.3784,    0.6537,   -0.4818,   -0.1650,    0.4818,    0.1650 },
-                                   {-0.6537,    0.3784,    0.6537,   -0.3784,   -0.1650,    0.4818,    0.1650,   -0.4818 },
-                                   { 0.0457,    0.0457,    0.0457,    0.0457,    0.6525,    0.6525,    0.6525,    0.6525  }};
-
-    NDArray GradX = new double[,] { { -0.0195,    -0.0057,   -0.0195,   -0.0057,    0.0202,    -0.0344,    0.0202,    -0.0344 },
-                                    { -0.0189,    0.0160,   -0.0189,     0.0160,    0,        0,          0,          0 },
-                                    { 0.0118,    0.0128,   -0.0118,    -0.0128,    0.0369,    0 ,        -0.0369,     0 }};
-
-    NDArray GradY = new double[,] { { -0.0160,    0.0189,   -0.0160 ,   0.0189  ,  0       , 0        , 0       ,  0 },
-                                    { -0.0057,   -0.0195,    -0.0057,   -0.0195 ,  -0.0344 ,  0.0202  , -0.0344 ,   0.0202 },
-                                    { 0.0128 ,  -0.0118 ,  -0.0128  ,  0.0118   ,   0      ,  -0.0369 ,  0      ,   0.0369 }};
-
-    NDArray GradZ = new double[,] { { 0.0078  ,  0.0069 ,  -0.0078  , -0.0069   , 0.0344   , 0       , -0.0344  ,  0 },
-                                    { 0.0069  , -0.0078 ,  -0.0069  ,  0.0078   , 0        ,-0.0344  ,  0       ,  0.0344 },
-                                    { 0.0136  ,  0.0136 ,   0.0136  ,  0.0136   ,-0.0183   ,-0.0183  , -0.0183  , -0.0183}};
-
-    NDArray G = new double[,] { { -0.0195,    -0.0057,   -0.0195,   -0.0057,    0.0202,    -0.0344,    0.0202,    -0.0344 },
-                                { -0.0189,    0.0160,   -0.0189,     0.0160,    0,        0,          0,          0 },
-                                { 0.0118,    0.0128,   -0.0118,    -0.0128,    0.0369,    0 ,        -0.0369,     0 },
-                                { -0.0160,    0.0189,   -0.0160 ,   0.0189  ,  0       , 0        , 0       ,  0 },
-                                { -0.0057,   -0.0195,    -0.0057,   -0.0195 ,  -0.0344 ,  0.0202  , -0.0344 ,   0.0202 },
-                                { 0.0128 ,  -0.0118 ,  -0.0128  ,  0.0118   ,   0      ,  -0.0369 ,  0      ,   0.0369 },
-                                { 0.0078  ,  0.0069 ,  -0.0078  , -0.0069   , 0.0344   , 0       , -0.0344  ,  0 },
-                                { 0.0069  , -0.0078 ,  -0.0069  ,  0.0078   , 0        ,-0.0344  ,  0       ,  0.0344 },
-                                { 0.0136  ,  0.0136 ,   0.0136  ,  0.0136   ,-0.0183   ,-0.0183  , -0.0183  , -0.0183}};
-
     void Start()
     {
         magnets = FindObjectsOfType<magnet>();
-        Bvec = Bvec * 0.001f;
 
         foreach (var magnet in magnets)
         {
@@ -149,9 +107,9 @@ public class main_RL : Agent
         totalSteps = 0;
         foreach (var magnet in magnets)
         {
-            if (Mathf.Abs(magnet.transform.position[0]) > roi_xy
-                || Mathf.Abs(magnet.transform.position[1]) > roi_z
-                || Mathf.Abs(magnet.transform.position[2]) > roi_xy)
+            if (Mathf.Abs(magnet.transform.position[0]) > RLConfig.RoiXY
+                || Mathf.Abs(magnet.transform.position[1]) > RLConfig.RoiZ
+                || Mathf.Abs(magnet.transform.position[2]) > RLConfig.RoiXY)
             {
                 magnet.transform.position = new Vector3(0, 5f, 9f);
                 magnet.RigidBody.angularVelocity = Vector3.zero;
@@ -186,13 +144,13 @@ public class main_RL : Agent
             return;
         }
 
-        agentPos[0] = Mathf.Round((magnets[0].transform.position[0] / wksp_size_xy) * 100.0f) * 0.01f;
-        agentPos[1] = Mathf.Round((magnets[0].transform.position[2] / wksp_size_xy) * 100.0f) * 0.01f;
-        agentPos[2] = Mathf.Round((magnets[0].transform.position[1] / wksp_size_z) * 100.0f) * 0.01f;
+        agentPos[0] = Mathf.Round((magnets[0].transform.position[0] / RLConfig.WorkspaceSizeXY) * 100.0f) * 0.01f;
+        agentPos[1] = Mathf.Round((magnets[0].transform.position[2] / RLConfig.WorkspaceSizeXY) * 100.0f) * 0.01f;
+        agentPos[2] = Mathf.Round((magnets[0].transform.position[1] / RLConfig.WorkspaceSizeZ) * 100.0f) * 0.01f;
 
-        targetPos[0] = Mathf.Round((cube.transform.position[0] / wksp_size_xy) * 100.0f) * 0.01f;
-        targetPos[1] = Mathf.Round((cube.transform.position[2] / wksp_size_xy) * 100.0f) * 0.01f;
-        targetPos[2] = Mathf.Round((cube.transform.position[1] / wksp_size_z) * 100.0f) * 0.01f;
+        targetPos[0] = Mathf.Round((cube.transform.position[0] / RLConfig.WorkspaceSizeXY) * 100.0f) * 0.01f;
+        targetPos[1] = Mathf.Round((cube.transform.position[2] / RLConfig.WorkspaceSizeXY) * 100.0f) * 0.01f;
+        targetPos[2] = Mathf.Round((cube.transform.position[1] / RLConfig.WorkspaceSizeZ) * 100.0f) * 0.01f;
 
         sensor.AddObservation(agentPos); // Normalize
         sensor.AddObservation(targetPos); // Normalize
@@ -200,18 +158,18 @@ public class main_RL : Agent
 
     public override void OnActionReceived(ActionBuffers vectorAction)
     {
-        I1 = Mathf.Round(vectorAction.ContinuousActions[0] * force_mult * 100.0f) * 0.01f;
-        I2 = Mathf.Round(vectorAction.ContinuousActions[1] * force_mult * 100.0f) * 0.01f;
-        I3 = Mathf.Round(vectorAction.ContinuousActions[2] * force_mult * 100.0f) * 0.01f;
-        I4 = Mathf.Round(vectorAction.ContinuousActions[3] * force_mult * 100.0f) * 0.01f;
-        I5 = Mathf.Round(vectorAction.ContinuousActions[4] * force_mult * 100.0f) * 0.01f;
-        I6 = Mathf.Round(vectorAction.ContinuousActions[5] * force_mult * 100.0f) * 0.01f;
-        I7 = Mathf.Round(vectorAction.ContinuousActions[6] * force_mult * 100.0f) * 0.01f;
-        I8 = Mathf.Round(vectorAction.ContinuousActions[7] * force_mult * 100.0f) * 0.01f;
+        I1 = Mathf.Round(vectorAction.ContinuousActions[0] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I2 = Mathf.Round(vectorAction.ContinuousActions[1] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I3 = Mathf.Round(vectorAction.ContinuousActions[2] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I4 = Mathf.Round(vectorAction.ContinuousActions[3] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I5 = Mathf.Round(vectorAction.ContinuousActions[4] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I6 = Mathf.Round(vectorAction.ContinuousActions[5] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I7 = Mathf.Round(vectorAction.ContinuousActions[6] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
+        I8 = Mathf.Round(vectorAction.ContinuousActions[7] * RLConfig.ForceMultiplier * 100.0f) * 0.01f;
 
         foreach (var magnet in magnets)
         {
-            force_calc(magnet);
+            ForceCalc(magnet);
         }
 
         dist_xy = Vector2.Distance(new Vector2(agentPos[0], agentPos[1]), new Vector2(targetPos[0], targetPos[1]));
@@ -219,7 +177,7 @@ public class main_RL : Agent
         dist_xyz = Mathf.Abs(Vector3.Distance(agentPos, targetPos));
 
         totalSteps += 1;
-        if (totalSteps > max_steps)
+        if (totalSteps > RLConfig.MaxSteps)
         {
             SetReward(-dist_xyz);
             resetReason = "Exceeded max steps";
@@ -227,15 +185,24 @@ public class main_RL : Agent
             EndEpisode();
         }
 
-        SetReward(-dist_xyz);
+        // Calculate the maximum possible distance in the workspace
+        float maxDistance = Mathf.Sqrt(Mathf.Pow(RLConfig.WorkspaceSizeXY, 2) * 2 + Mathf.Pow(RLConfig.WorkspaceSizeZ, 2));
+
+        // Calculate the distance to the next point and normalize it
+        var nextPointPos = pathPoints[currentPointIndex];
+        float dist_to_next = Vector3.Distance(agentPos, nextPointPos);
+        float normalized_dist_to_next = Mathf.Clamp(1 - (dist_to_next / maxDistance), 0, 1);
+
+        // Apply the normalized distance reward
+        SetReward(normalized_dist_to_next * 20);
 
         // Check for reaching the target point
-        if (dist_xyz < threshold_xyz)
+        if (dist_xyz < RLConfig.ThresholdXYZ)
         {
             currentPointIndex++;
             if (currentPointIndex >= pathPoints.Count)
             {
-                SetReward(100); // Reward for completing the path
+                SetReward(100); // Large reward for completing the path
                 resetReason = "Completed the path";
                 Debug.Log($"Episode ended due to: {resetReason}");
                 EndEpisode();
@@ -243,12 +210,13 @@ public class main_RL : Agent
             else
             {
                 cube.transform.position = pathPoints[currentPointIndex];
-                SetReward(10); // Reward for reaching the next point
+                SetReward(15); // Reward for reaching the next point
+                Debug.Log($"Reached intermediate point {currentPointIndex}, total steps: {totalSteps}");
             }
         }
 
         // Check for collision with bifurcation cube
-        if (Vector3.Distance(magnets[0].transform.position, bifurcationCube.transform.position) < threshold_xyz)
+        if (Vector3.Distance(magnets[0].transform.position, bifurcationCube.transform.position) < RLConfig.ThresholdXYZ)
         {
             SetReward(-200);
             resetReason = "Collided with bifurcation cube";
@@ -256,67 +224,31 @@ public class main_RL : Agent
             EndEpisode();
         }
 
-        if ((Mathf.Abs(agentPos[0]) > 0.8f) || (Mathf.Abs(agentPos[1]) > 0.8f))
-        {
-            SetReward(-200);
-            resetReason = "Out of bounds";
-            Debug.Log($"Episode ended due to: {resetReason}");
-            magnets[0].transform.position = new Vector3(0, 5f, 9f);
-            EndEpisode();
-        }
+        // Remove penalty for going out of bounds
+        // if ((Mathf.Abs(agentPos[0]) > 0.8f) || (Mathf.Abs(agentPos[1]) > 0.8f))
+        // {
+        //     SetReward(-200);
+        //     resetReason = "Out of bounds";
+        //     Debug.Log($"Episode ended due to: {resetReason}");
+        //     magnets[0].transform.position = new Vector3(0, 5f, 9f);
+        //     EndEpisode();
+        // }
     }
 
-    public override void Heuristic(in ActionBuffers action)
-    {
-        var continuousActionsOut = action.ContinuousActions;
 
-        if (Input.GetAxis("Vertical") < 0)
-        {
-            continuousActionsOut[3 - 1] = huresticSpeed;
-            continuousActionsOut[1 - 1] = 0;
-            continuousActionsOut[2 - 1] = 0;
-            continuousActionsOut[4 - 1] = 0;
-        }
-        if (Input.GetAxis("Vertical") > 0)
-        {
-            continuousActionsOut[1 - 1] = huresticSpeed;
-            continuousActionsOut[2 - 1] = 0;
-            continuousActionsOut[3 - 1] = 0;
-            continuousActionsOut[4 - 1] = 0;
-        }
-        if (Input.GetAxis("Horizontal") < 0)
-        {
-            continuousActionsOut[4 - 1] = huresticSpeed;
-            continuousActionsOut[1 - 1] = 0;
-            continuousActionsOut[2 - 1] = 0;
-            continuousActionsOut[3 - 1] = 0;
-        }
-        if (Input.GetAxis("Horizontal") > 0)
-        {
-            continuousActionsOut[2 - 1] = huresticSpeed;
-            continuousActionsOut[1 - 1] = 0;
-            continuousActionsOut[3 - 1] = 0;
-            continuousActionsOut[4 - 1] = 0;
-        }
-        if (Input.GetButtonDown("Fire1"))
-        {
-            OnEpisodeBegin();
-        }
-    }
 
-    void force_calc(magnet magnet)
+    void ForceCalc(magnet magnet)
     {
         var rbm = magnet.RigidBody;
-        var mag_moment = 0.1f; //0.00027f
 
         NDArray I = new float[,] { { I1 }, { I2 }, { I3 }, { I4 }, { I5 }, { I6 }, { I7 }, { I8 } };
 
-        NDArray G_total = np.matmul(G, I);
+        NDArray G_total = np.matmul(RLConfig.G, I);
         NDArray G_total_reshape = np.transpose(np.reshape(G_total, (3, 3)));
 
         Vector3 unit_vector_mag = ((magnet.poles[0].transform.position - magnet.poles[1].transform.position)).normalized;
         NDArray m = new float[,] { { unit_vector_mag[0] }, { unit_vector_mag[2] }, { unit_vector_mag[1] } };
-        m = m * mag_moment;
+        m = m * RLConfig.MagMoment;
 
         NDArray F = np.matmul(G_total_reshape, m);
 
@@ -333,7 +265,7 @@ public class main_RL : Agent
             { -m1, m0, 0 }
         };
 
-        NDArray B = np.matmul(Bvec, I);
+        NDArray B = np.matmul(RLConfig.Bvec, I);
         NDArray T = np.matmul(m_skew, B);
 
         // Torque
@@ -347,7 +279,7 @@ public class main_RL : Agent
         // Manually negate F_vec elements
         F_vec = new Vector3(-F_vec.x, -F_vec.y, -F_vec.z);
 
-        Vector3 oth_force = other_forces(magnet);
+        Vector3 oth_force = OtherForces(magnet);
 
         Vector3 total_force = F_vec + oth_force;
 
@@ -361,7 +293,7 @@ public class main_RL : Agent
         }
     }
 
-    Vector3 other_forces(magnet magnet)
+    Vector3 OtherForces(magnet magnet)
     {
         var rbm = magnet.RigidBody;
 

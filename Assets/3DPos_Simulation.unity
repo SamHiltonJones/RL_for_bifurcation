@@ -1688,9 +1688,9 @@ MonoBehaviour:
   force_mult: 1
   magnets: []
   huresticSpeed: 0.5
-  threshold_xy: 0.05
-  threshold_z: 0.05
-  threshold_xyz: 0.05
+  threshold_xy: 0.1
+  threshold_z: 0.1
+  threshold_xyz: 0.1
   outOfBound: 0
   path: {fileID: 1201736133}
   bifurcationCube: {fileID: 1883995850}
