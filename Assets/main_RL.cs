@@ -117,6 +117,17 @@ public class main_RL : Agent
             }
         }
 
+        var obstacleManager = FindObjectOfType<DynamicObstacleManager>();
+        if (obstacleManager != null)
+        {
+            foreach (var obstacle in obstacleManager.GetObstacles())
+            {
+                GameObject selectedRegion = obstacleManager.targetRegions[Random.Range(0, obstacleManager.targetRegions.Length)];
+                Vector3 randomPosition = obstacleManager.GeneratePointWithinCylinder(selectedRegion);
+                obstacle.transform.position = randomPosition;
+            }
+        }
+
         GenerateNewPath();
 
         if (pathPoints.Count > 0)
@@ -185,16 +196,7 @@ public class main_RL : Agent
             EndEpisode();
         }
 
-        // Calculate the maximum possible distance in the workspace
-        float maxDistance = Mathf.Sqrt(Mathf.Pow(RLConfig.WorkspaceSizeXY, 2) * 2 + Mathf.Pow(RLConfig.WorkspaceSizeZ, 2));
-
-        // Calculate the distance to the next point and normalize it
-        var nextPointPos = pathPoints[currentPointIndex];
-        float dist_to_next = Vector3.Distance(agentPos, nextPointPos);
-        float normalized_dist_to_next = Mathf.Clamp(1 - (dist_to_next / maxDistance), 0, 1);
-
-        // Apply the normalized distance reward
-        SetReward(normalized_dist_to_next * 20);
+        SetReward(-dist_xyz);
 
         // Check for reaching the target point
         if (dist_xyz < RLConfig.ThresholdXYZ)
@@ -202,7 +204,7 @@ public class main_RL : Agent
             currentPointIndex++;
             if (currentPointIndex >= pathPoints.Count)
             {
-                SetReward(100); // Large reward for completing the path
+                SetReward(100); // Reward for completing the path
                 resetReason = "Completed the path";
                 Debug.Log($"Episode ended due to: {resetReason}");
                 EndEpisode();
@@ -210,8 +212,7 @@ public class main_RL : Agent
             else
             {
                 cube.transform.position = pathPoints[currentPointIndex];
-                SetReward(15); // Reward for reaching the next point
-                Debug.Log($"Reached intermediate point {currentPointIndex}, total steps: {totalSteps}");
+                SetReward(10); // Reward for reaching the next point
             }
         }
 
@@ -224,18 +225,25 @@ public class main_RL : Agent
             EndEpisode();
         }
 
-        // Remove penalty for going out of bounds
-        // if ((Mathf.Abs(agentPos[0]) > 0.8f) || (Mathf.Abs(agentPos[1]) > 0.8f))
-        // {
-        //     SetReward(-200);
-        //     resetReason = "Out of bounds";
-        //     Debug.Log($"Episode ended due to: {resetReason}");
-        //     magnets[0].transform.position = new Vector3(0, 5f, 9f);
-        //     EndEpisode();
-        // }
+    //     if ((Mathf.Abs(agentPos[0]) > 0.8f) || (Mathf.Abs(agentPos[1]) > 0.8f))
+    //     {
+    //         SetReward(-200);
+    //         resetReason = "Out of bounds";
+    //         Debug.Log($"Episode ended due to: {resetReason}");
+    //         magnets[0].transform.position = new Vector3(0, 5f, 9f);
+    //         EndEpisode();
+    //     }
     }
 
+    public override void Heuristic(in ActionBuffers action)
+    {
+        var continuousActionsOut = action.ContinuousActions;
 
+        if (Input.GetButtonDown("Fire1"))
+        {
+            OnEpisodeBegin();
+        }
+    }
 
     void ForceCalc(magnet magnet)
     {

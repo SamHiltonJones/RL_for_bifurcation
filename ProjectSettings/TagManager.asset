@@ -6,6 +6,7 @@ TagManager:
   tags:
   - magnet
   - PathPointClone
+  - obstacle
   layers:
   - Default
   - TransparentFX
