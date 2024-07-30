@@ -196,7 +196,11 @@ public class main_RL : Agent
             EndEpisode();
         }
 
-        SetReward(-dist_xyz);
+        // Normalize the distance and apply the penalization
+        float maxDist = RLConfig.WorkspaceSizeXY; // Assuming WorkspaceSizeXY represents the max possible distance
+        float normalizedDist = dist_xyz / maxDist;
+        float penalizedDist = normalizedDist * 50;
+        SetReward(-penalizedDist);
 
         // Check for reaching the target point
         if (dist_xyz < RLConfig.ThresholdXYZ)
@@ -204,7 +208,7 @@ public class main_RL : Agent
             currentPointIndex++;
             if (currentPointIndex >= pathPoints.Count)
             {
-                SetReward(100); // Reward for completing the path
+                SetReward(50); // Reward for completing the path
                 resetReason = "Completed the path";
                 Debug.Log($"Episode ended due to: {resetReason}");
                 EndEpisode();
@@ -212,7 +216,7 @@ public class main_RL : Agent
             else
             {
                 cube.transform.position = pathPoints[currentPointIndex];
-                SetReward(10); // Reward for reaching the next point
+                SetReward(15); // Reward for reaching the next point
             }
         }
 
@@ -224,16 +228,8 @@ public class main_RL : Agent
             Debug.Log($"Episode ended due to: {resetReason}");
             EndEpisode();
         }
-
-    //     if ((Mathf.Abs(agentPos[0]) > 0.8f) || (Mathf.Abs(agentPos[1]) > 0.8f))
-    //     {
-    //         SetReward(-200);
-    //         resetReason = "Out of bounds";
-    //         Debug.Log($"Episode ended due to: {resetReason}");
-    //         magnets[0].transform.position = new Vector3(0, 5f, 9f);
-    //         EndEpisode();
-    //     }
     }
+
 
     public override void Heuristic(in ActionBuffers action)
     {
